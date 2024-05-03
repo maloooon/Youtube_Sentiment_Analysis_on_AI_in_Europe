@@ -55,7 +55,7 @@ def remove_emoji(comment):
     return emoji_pattern.sub(r'', comment)
 
 
-def P_data_reading(path):
+def P_data_reading(path, i = 20):
     """Simple function to read in the data we want to use.
        path : the path pointing to our data ; csv file 
     """
@@ -65,7 +65,7 @@ def P_data_reading(path):
     ############### FOR TESTING PURPOSES, WE ONLY TAKE FIRST 20 ###############
 
     # Turn into Series, containing only the comments
-    return comments_data.iloc[0:10,:]['Comment']
+    return comments_data.iloc[0:i,:]['Comment']
 
 
 
