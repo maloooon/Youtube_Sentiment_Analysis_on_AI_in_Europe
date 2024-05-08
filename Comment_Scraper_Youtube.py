@@ -5,7 +5,7 @@ import getpass
 
 api_key = 'AIzaSyA7fWeIgqdlPRzHhKlRVtoN48tDgi_oJQY'
 
-playlist_ids = ['PLLtT6fiQ1SOMfsD2n145WHWMmeqBPqz21']
+playlist_ids = ['PLLtT6fiQ1SOP-khPYT-PUnunLpQbqslT-']
 
 
 # Build the YouTube client
@@ -119,6 +119,7 @@ comments_df = pd.DataFrame(all_comments)
 
 
 # Export whole dataset to the local machine as CSV File
-csv_file = '/Users/marlon/VS-Code-Projects/Youtube/comments_0.csv'  # Name your file
+csv_file = '/Users/marlon/VS-Code-Projects/Youtube/english_positive_bias_2.csv'  # Name your file
 comments_df.to_csv(csv_file, index=False)
+
 

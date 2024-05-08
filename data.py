@@ -8,6 +8,7 @@ from nltk import ne_chunk
 import regex as re 
 import spacy # We need spacy for german lemmatization 
 import de_core_news_sm
+import en_core_web_sm
 import matplotlib.pyplot as plt 
 from wordcloud import WordCloud
 from transformers import pipeline
@@ -16,6 +17,10 @@ from transformers import DistilBertTokenizer
 #nltk.download('stopwords')
 #nltk.download('averaged_perceptron_tagger')
 from germansentiment import SentimentModel
+from transformers import AutoTokenizer, TFAutoModelForSequenceClassification
+import tensorflow as tf
+import numpy as np 
+
 
 
 
@@ -55,7 +60,7 @@ def remove_emoji(comment):
     return emoji_pattern.sub(r'', comment)
 
 
-def P_data_reading(path, i = 20):
+def P_data_reading(path, i = 350):
     """Simple function to read in the data we want to use.
        path : the path pointing to our data ; csv file 
     """
@@ -65,7 +70,14 @@ def P_data_reading(path, i = 20):
     ############### FOR TESTING PURPOSES, WE ONLY TAKE FIRST 20 ###############
 
     # Turn into Series, containing only the comments
+
+    
+
+    
     return comments_data.iloc[0:i,:]['Comment']
+
+
+
 
 
 
@@ -76,6 +88,9 @@ def P_data_cleaning(data, language):
     """
 
     
+    # REMOVE NAN ENTRIES
+    data = data.dropna()
+
     # FOR GERMAN DATA : Change ö , ä , ü to oe, ae, ue 
     data = data.str.replace("ö", "oe").str.replace("ä", "ae").str.replace("ü", "ue")
 
@@ -151,6 +166,10 @@ def P_data_lemmatizing(comment, language):
         lemmatizer = spacy.load("de_core_news_sm")
 
 
+    if language.lower() == 'english':
+        lemmatizer = spacy.load("en_core_web_sm")
+
+
 
     lemmatized_comment = ' '.join([token.lemma_ for token in lemmatizer(comment)])
 
@@ -202,6 +221,66 @@ def P_data_filtering(sentiment_words, model, language, threshold = 0.95):
        threshold : threshold on the confidence level of sentiment predictions of the single words ; Float
     """
 
+    if language.lower() == 'english':
+        # According to : 
+        # https://huggingface.co/rabindralamsal/BERTsent?text=I+like+you.+I+love+you
+        tokenizer = AutoTokenizer.from_pretrained("rabindralamsal/BERTsent")
+        model = TFAutoModelForSequenceClassification.from_pretrained("rabindralamsal/BERTsent")
+
+        data = {'word' : [], 'sentiment_label' : [], 'confidence_pos' : [], 'confidence_neg' : [], 'confidence_neutral' : [], 'confidence_highest' : []}
+            
+        for word in sentiment_words:
+
+            input = tokenizer.encode(word, return_tensors="tf")
+            output = model.predict(input)[0]
+            prediction = tf.nn.softmax(output, axis=1).numpy()
+            sentiment = np.argmax(prediction)
+
+            # Convert sentiments (as they are stored 0,1,2 in this model)
+            if sentiment == 0:
+                sentiment = 'negative'
+            elif sentiment == 1:
+                sentiment = 'neutral'
+            elif sentiment == 2:
+                sentiment = 'positive'
+                
+
+            data['word'].append(word)
+            data['sentiment_label'].append(sentiment)
+            data['confidence_pos'].append(prediction[0][2])
+            data['confidence_neg'].append(prediction[0][0])
+            data['confidence_neutral'].append(prediction[0][1])
+            data['confidence_highest'].append(max(prediction[0][0],prediction[0][1],prediction[0][2]))
+
+
+            words_sentiments_confidence = pd.DataFrame(data, columns=['word', 'sentiment_label', 'confidence_pos', 'confidence_neg', 'confidence_neutral', 'confidence_highest'])
+            words_sentiments_confidence.to_csv('/Users/marlon/VS-Code-Projects/Youtube/words_and_sentiments.csv')
+
+
+            words_sentiments_confidence_filtered = words_sentiments_confidence[(words_sentiments_confidence['confidence_highest'] >= threshold)\
+                                                                                & (words_sentiments_confidence['confidence_highest'] != words_sentiments_confidence['confidence_neutral']) \
+                                                                                & (~words_sentiments_confidence['word'].str.contains(r'\d')) \
+                                                                                & (words_sentiments_confidence['word'].str.len() > 1)]
+
+            words_sentiments_confidence_filtered.to_csv('/Users/marlon/VS-Code-Projects/Youtube/words_and_sentiments_filtered.csv')
+
+
+            # Finally, we look at the neutral values : Here, we use a list of buzz words that are AI related. We only want to keep
+            # the neutral words that are somewhat related to AI.
+            neutral_filter = ['ai', 'artificial', 'intelligence','machine', 'learning', 'robot']
+
+            words_sentiments_confidence_filtered_2 = words_sentiments_confidence[(words_sentiments_confidence['word'].isin(neutral_filter))]
+
+           # words_sentiments_confidence_filtered_2.to_csv('/Users/marlon/VS-Code-Projects/Youtube/words_and_sentiments_filtered_2.csv')
+
+            words_sentiments_confidence_filtered_final = pd.concat([words_sentiments_confidence_filtered, words_sentiments_confidence_filtered_2])
+
+            # Possible that we have some duplicates in the two concatenated ones (since in filtered_2 we take across also the ones with positive & negative sentiment again)
+            words_sentiments_confidence_filtered_final = words_sentiments_confidence_filtered_final.drop_duplicates()
+
+            words_sentiments_confidence_filtered_final.to_csv('/Users/marlon/VS-Code-Projects/Youtube/words_and_sentiments_filtered_final.csv')
+
+        return words_sentiments_confidence_filtered_final
 
     if language.lower() == 'german':
         if model.lower() == 'bert':
@@ -312,28 +391,43 @@ def V_word_cloud(data):
 
 
 def main():
-    path = 'comments_0.csv'
+    LANGUAGE = 'english'
+    path = '/Users/marlon/VS-Code-Projects/Youtube/english_positive_bias_1.csv' #'comments_0.csv'
 
     data = P_data_reading(path)
-    data_cleaned = P_data_cleaning(data, language ='german')
+    data_cleaned = P_data_cleaning(data, language ='german') # language german here means just changing ä to ae etc. ; can also be used
+    # for english e.g.
     data_cleaned.to_csv('/Users/marlon/VS-Code-Projects/Youtube/check_cleaned.csv')
-    data_cleaned_lemmatized = data_cleaned.apply(lambda x : P_data_lemmatizing(x, language = 'german'))
-    data_cleaned_lemmatized.to_csv('/Users/marlon/VS-Code-Projects/Youtube/check_cleaned_lemmatized.csv')
-    data_words_count, words = P_data_word_count(data_cleaned_lemmatized)
-    words_sentiments_filtered = P_data_filtering(words, model= 'bert', language= 'german')
-    data_cleaned_and_filtered = P_data_remap(words_sentiments_filtered, data_cleaned_lemmatized, data_cleaned)
-    data_cleaned_and_filtered_tokenized = data_cleaned_and_filtered.apply(lambda x : P_data_tokenization(x, language= 'german', model = 'distilbert'))
+
+    if LANGUAGE == 'german':
+        
+        data_cleaned_lemmatized = data_cleaned.apply(lambda x : P_data_lemmatizing(x, language = 'german'))
+        data_cleaned_lemmatized.to_csv('/Users/marlon/VS-Code-Projects/Youtube/check_cleaned_lemmatized.csv')
+        data_words_count, words = P_data_word_count(data_cleaned_lemmatized)
+        words_sentiments_filtered = P_data_filtering(words, model= 'bert', language= 'german')
+        data_cleaned_and_filtered = P_data_remap(words_sentiments_filtered, data_cleaned_lemmatized, data_cleaned)
+        data_cleaned_and_filtered_tokenized = data_cleaned_and_filtered.apply(lambda x : P_data_tokenization(x, language= 'german', model = 'distilbert'))
+        
+        # With this final step, we can now build a dataloader and fine tune a distilBERT model
+        # since we have unlabeled data, maybe something like self-supervised learning / transfer learning (with the english youtube AI comments,
+        # like daniele proposed)
+
+
+        data_cleaned_and_filtered_tokenized.to_csv('/Users/marlon/VS-Code-Projects/Youtube/cleaned_filtered_tokenized.csv')
     
-    # With this final step, we can now build a dataloader and fine tune a distilBERT model
-    # since we have unlabeled data, maybe something like self-supervised learning / transfer learning (with the english youtube AI comments,
-    # like daniele proposed)
+        # Create the word cloud with the filtered data
+        data_words_count, words = P_data_word_count(data_cleaned_and_filtered)
+        V_word_cloud(data_words_count)
 
+    elif LANGUAGE == 'english':
+        data_cleaned_lemmatized = data_cleaned.apply(lambda x : P_data_lemmatizing(x, language = 'english'))
+        data_words_count, words = P_data_word_count(data_cleaned_lemmatized)
 
-    data_cleaned_and_filtered_tokenized.to_csv('/Users/marlon/VS-Code-Projects/Youtube/cleaned_filtered_tokenized.csv')
-   
-    # Create the word cloud with the filtered data
-    data_words_count, words = P_data_word_count(data_cleaned_and_filtered)
-    V_word_cloud(data_words_count)
+        words_sentiments_filtered = P_data_filtering(words, model= 'bert', language= 'english')
+        data_cleaned_and_filtered = P_data_remap(words_sentiments_filtered, data_cleaned_lemmatized, data_cleaned)
+    
+        
+
 
 
 
