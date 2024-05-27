@@ -11,8 +11,18 @@ english_test_dataset_labelled = pd.read_csv('/Users/marlon/VS-Code-Projects/Yout
 english_test_dataset_labelled_2 = pd.read_csv('/Users/marlon/VS-Code-Projects/Youtube/NLP labelled data preview/english set/andrea.csv', sep= ';')
 english_test_dataset_labelled_3 = pd.read_csv('/Users/marlon/VS-Code-Projects/Youtube/NLP labelled data preview/english set/giovanni.csv', sep= ';')
 
+# Since the ones downloaded from windows are a bit messed up, we need to rename columns
+english_test_dataset_labelled_2.columns = ["Comment", "Label"]
+english_test_dataset_labelled_3.columns = ["Comment", "Label", "unnamed", "unnamed2"]
+
 # Concatenate the datasets
 english_test_dataset_labelled = pd.concat([english_test_dataset_labelled, english_test_dataset_labelled_2, english_test_dataset_labelled_3], ignore_index= True)
+
+# Convert type of each comment to string
+english_test_dataset_labelled['Comment'] = english_test_dataset_labelled['Comment'].astype(str)
+
+# Remove the last 2 columns
+english_test_dataset_labelled = english_test_dataset_labelled.drop(columns=['unnamed', 'unnamed2'])
 
 # Remove comments that are not labelled (have NaN value in column 'Label')
 english_test_dataset_labelled = english_test_dataset_labelled.dropna(subset=['Label'])
@@ -26,6 +36,7 @@ english_test_dataset_labelled['Comment'] = P_data_cleaning(english_test_dataset_
 # Seperate the two columns in the dataframe into 'comment' and 'label' in form of two lists
 english_test_dataset_labelled_comments = english_test_dataset_labelled['Comment'].tolist()
 english_test_dataset_labelled_labels = english_test_dataset_labelled['Label'].tolist()
+
 
 # Convert the elements in the list to integers, handling non-integer values 
 for idx,label in enumerate(english_test_dataset_labelled_labels):
@@ -71,6 +82,13 @@ positive_comments = positive_comments[:min_comments]
 
 # Now that we have evened out the dataset, we can concatenate the lists
 comments = negative_comments + neutral_comments + positive_comments
+
+# Turn all elements in comments into strings
+comments = [str(comment) for comment in comments]
+
+# Check that all values in comments are strings
+for comment in comments:
+    assert type(comment) == str, "All comments should be strings."
 
 # Create the labels for the evened out dataset
 labels = [0]*min_comments + [1]*min_comments + [2]*min_comments
