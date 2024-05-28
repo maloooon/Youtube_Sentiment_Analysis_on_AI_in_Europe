@@ -2,8 +2,8 @@ from transformers import DistilBertTokenizer, DistilBertForSequenceClassificatio
 from datasets import Dataset
 
 
-# Instantiate the tokenizer
-tokenizer = DistilBertTokenizer.from_pretrained('distilbert-base-uncased')
+# Instantiate the tokenizer for multilingual data
+tokenizer = DistilBertTokenizer.from_pretrained('distilbert-base-multilingual-cased')
 
 
 def tokenize_function(examples, tokenizer=tokenizer):
@@ -33,7 +33,8 @@ def DistilBertModel(train_comments, train_labels,
     tokenizer : tokenizer to use ; DistilBertTokenizer
     """
 
-    model = DistilBertForSequenceClassification.from_pretrained('distilbert-base-uncased', num_labels=num_labels)
+    # Instantiate multilingual model
+    model = DistilBertForSequenceClassification.from_pretrained('distilbert-base-multilingual-cased', num_labels=num_labels)
     
 
     # Setup the Hugging Face Dataset Class
@@ -66,6 +67,10 @@ def DistilBertModel(train_comments, train_labels,
         weight_decay=0.01,               # strength of weight decay
         logging_dir='./logs',            # directory for storing logs
         logging_steps=10,
+        evaluation_strategy="steps",     # Evaluate every `eval_steps`
+        eval_steps=10,                   # Number of steps between evaluations
+        save_steps=10,                   # Save the model every `save_steps`
+        load_best_model_at_end=True,     # Load the best model at the end of training
     )
 
     # Trainer

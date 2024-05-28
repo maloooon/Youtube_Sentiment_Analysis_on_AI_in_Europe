@@ -100,7 +100,7 @@ print("Non noisy comments:", val_labels.count(0))
 
 
 # Using our evened out dataset, we can start applying the model
-model_trained, tokenizer_trained = DistilBertModel(train_comments, train_labels, val_comments, val_labels, batch_size_train = 128, batch_size_val = 16, num_labels = 2, epochs = 100, tokenizer = tokenizer)
+model_trained, tokenizer_trained = DistilBertModel(train_comments, train_labels, val_comments, val_labels, batch_size_train = 16, batch_size_val = 16, num_labels = 2, epochs = 1, tokenizer = tokenizer)
 save_model(model_trained, tokenizer_trained, "denoising_model_fine_tuned_distilbert_english")
 
 
