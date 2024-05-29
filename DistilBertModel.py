@@ -34,7 +34,7 @@ def DistilBertModel(train_comments, train_labels,
     """
 
     # Instantiate multilingual model
-    model = DistilBertForSequenceClassification.from_pretrained('distilbert-base-multilingual-cased', num_labels=num_labels)
+    model = DistilBertForSequenceClassification.from_pretrained('distilbert-base-multilingual-cased-sentiment', num_labels=num_labels)
     
 
     # Setup the Hugging Face Dataset Class
@@ -64,13 +64,16 @@ def DistilBertModel(train_comments, train_labels,
         per_device_train_batch_size=batch_size_train,  # batch size for training
         per_device_eval_batch_size=batch_size_val,   # batch size for evaluation
         warmup_steps=500,                # number of warmup steps for learning rate scheduler
-        weight_decay=0.01,               # strength of weight decay
+        weight_decay=0.001,               # strength of weight decay
         logging_dir='./logs',            # directory for storing logs
         logging_steps=10,
         evaluation_strategy="steps",     # Evaluate every `eval_steps`
         eval_steps=10,                   # Number of steps between evaluations
         save_steps=10,                   # Save the model every `save_steps`
-        load_best_model_at_end=True,     # Load the best model at the end of training
+        load_best_model_at_end=True,     # Load the best model at the end of training#
+        learning_rate= 1e-5,              # Set the learning rate
+        metric_for_best_model="eval_loss", # Use evaluation loss to check how good our model is performing
+        greater_is_better=False,
     )
 
     # Trainer
