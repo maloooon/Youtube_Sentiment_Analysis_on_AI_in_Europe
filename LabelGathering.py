@@ -33,17 +33,26 @@ english_test_dataset_labelled = english_test_dataset_labelled.drop(columns=['unn
 english_test_dataset_labelled = english_test_dataset_labelled.dropna(subset=['Label'])
 
 
-english_test_dataset_labelled.to_csv("/Users/marlon/VS-Code-Projects/Youtube/ENGLISH_OWNLABEL_FULL.csv")
+#english_test_dataset_labelled.to_csv("/Users/marlon/VS-Code-Projects/Youtube/ENGLISH_OWNLABEL_FULL.csv")
+
 # Drop noisy comments, as they are not useful for training
 english_test_dataset_labelled = english_test_dataset_labelled[english_test_dataset_labelled['Label'] != 'N']
 
-english_test_dataset_labelled.to_csv("/Users/marlon/VS-Code-Projects/Youtube/ENGLISH_OWNLABEL_NONOISE.csv")
+#english_test_dataset_labelled.to_csv("/Users/marlon/VS-Code-Projects/Youtube/ENGLISH_OWNLABEL_NONOISE.csv")
 
 # Do preprocessing steps
+
+# Store uncleaned comments aswell. We will need them later on for our labelling checks
+english_test_dataset_labelled['Uncleaned_Comment'] = english_test_dataset_labelled['Comment']
+
 english_test_dataset_labelled['Comment'] = P_data_cleaning(english_test_dataset_labelled['Comment'], 'english', False)
 
-# Seperate the two columns in the dataframe into 'comment' and 'label' in form of two lists
+
+# Seperate the two columns in the dataframe into 'comment' and 'label' in form of two lists ; also store indices of the comments
 english_test_dataset_labelled_comments = english_test_dataset_labelled['Comment'].tolist()
+english_test_dataset_labelled_uncleaned_comments = english_test_dataset_labelled['Uncleaned_Comment'].tolist()
+# Zip together, so we can keep track of the original comments
+english_test_dataset_labelled_comments = list(zip(english_test_dataset_labelled_comments, english_test_dataset_labelled_uncleaned_comments))
 english_test_dataset_labelled_labels = english_test_dataset_labelled['Label'].tolist()
 
 
@@ -75,6 +84,7 @@ negative_comments = []
 neutral_comments = []
 positive_comments = []
 
+
 for i in range(len(english_test_dataset_labelled_labels)):
     if english_test_dataset_labelled_labels[i] == -1:
         negative_comments.append(english_test_dataset_labelled_comments[i])
@@ -82,18 +92,16 @@ for i in range(len(english_test_dataset_labelled_labels)):
         neutral_comments.append(english_test_dataset_labelled_comments[i])
     elif english_test_dataset_labelled_labels[i] == 1:
         positive_comments.append(english_test_dataset_labelled_comments[i])
+   
 
 
 
 # Concatenate the comments
 comments = negative_comments + neutral_comments + positive_comments
 
-# Turn all elements in comments into strings
-comments = [str(comment) for comment in comments]
 
-# Check that all values in comments are strings
-for comment in comments:
-    assert type(comment) == str, "All comments should be strings."
+# Turn all elements in comments into strings
+comments = [(str(ele1), str(ele2)) for ele1,ele2 in comments]
 
 # Create the labels for the evened out dataset
 labels = ['negative']*len(negative_comments) + ['neutral']*len(neutral_comments) + ['positive']*len(positive_comments)
@@ -109,6 +117,10 @@ model = AutoModelForSequenceClassification.from_pretrained("philschmid/distilber
 # Initialize the sentiment analysis pipeline
 sentiment_analysis = pipeline("sentiment-analysis", model=model, tokenizer=tokenizer)
 
+# Split comments into the cleaned and uncleaned ones 
+
+uncleaned_comments = [comment[1] for comment in comments]
+comments = [comment[0] for comment in comments]
 # Predict sentiment labels
 predictions = sentiment_analysis(comments)
 
@@ -155,12 +167,14 @@ conf_scores_test = [0.97,0.98,0.985, 0.99, 0.991, 0.992, 0.993, 0.994, 0.995]
 for conf_score in conf_scores_test:
     high_confidence_predictions = []
     high_confidence_labels = []
+    high_confidence_uncleaned_comments = []
     high_confidence_comments = []
     for i in range(len(scores)):
         if scores[i] >= conf_score:
             high_confidence_predictions.append(predictions[i])
             high_confidence_labels.append(labels[i])
             high_confidence_comments.append(comments[i])
+            high_confidence_uncleaned_comments.append(uncleaned_comments[i])
 
 
 
@@ -168,14 +182,20 @@ for conf_score in conf_scores_test:
     negative_comments_high_confidence = []
     neutral_comments_high_confidence = []
     positive_comments_high_confidence = []
+    negative_comments_uncleaned_high_confidence = []
+    neutral_comments_uncleaned_high_confidence = []
+    positive_comments_uncleaned_high_confidence = []
 
     for i in range(len(high_confidence_labels)):
         if high_confidence_labels[i] == 'negative':
             negative_comments_high_confidence.append(high_confidence_comments[i])
+            negative_comments_uncleaned_high_confidence.append(high_confidence_uncleaned_comments[i])
         elif high_confidence_labels[i] == 'neutral':
             neutral_comments_high_confidence.append(high_confidence_comments[i])
+            neutral_comments_uncleaned_high_confidence.append(high_confidence_uncleaned_comments[i])
         elif high_confidence_labels[i] == 'positive':
             positive_comments_high_confidence.append(high_confidence_comments[i])
+            positive_comments_uncleaned_high_confidence.append(high_confidence_uncleaned_comments[i])
 
 
     print(f"We got : {len(high_confidence_predictions)} and {len(high_confidence_labels)} many labels")
@@ -210,11 +230,13 @@ for conf_score in conf_scores_test:
         best_acc_neg = negative_correct/len(negative_comments_high_confidence)
         # Also store the comments (also the ones that were classified wrong, as they still have a high confidence score : we might relabel !)
         negative_comments_high_confidence_best = negative_comments_high_confidence
+        negative_comments_uncleaned_high_confidence_best = negative_comments_uncleaned_high_confidence
         best_neg_predictions = high_confidence_predictions
         best_neg_labels = high_confidence_labels
     if positive_correct/len(positive_comments_high_confidence) > best_acc_pos:
         best_acc_pos = positive_correct/len(positive_comments_high_confidence)
         positive_comments_high_confidence_best = positive_comments_high_confidence
+        positive_comments_uncleaned_high_confidence_best = positive_comments_uncleaned_high_confidence
         best_pos_predictions = high_confidence_predictions
         best_pos_labels = high_confidence_labels
 
@@ -223,12 +245,14 @@ for conf_score in conf_scores_test:
 
 # Save the best comments with our labels (column named 'labels') and the predicted labels (column named 'predictions')
 negative_comments_high_confidence_best = pd.DataFrame(negative_comments_high_confidence_best, columns=['comments'])
+negative_comments_high_confidence_best['uncleaned_comments'] = negative_comments_uncleaned_high_confidence_best
 negative_comments_high_confidence_best['labels'] = 'negative'
 predictions_on_negative = [best_neg_predictions[i] for i in range(len(best_neg_labels)) if best_neg_labels[i] == 'negative']
 
 negative_comments_high_confidence_best['predictions'] = predictions_on_negative
 
 positive_comments_high_confidence_best = pd.DataFrame(positive_comments_high_confidence_best, columns=['comments'])
+positive_comments_high_confidence_best['uncleaned_comments'] = positive_comments_uncleaned_high_confidence_best
 positive_comments_high_confidence_best['labels'] = 'positive'
 predictions_on_positive = [best_pos_predictions[i] for i in range(len(best_pos_labels)) if best_pos_labels[i] == 'positive']
 
