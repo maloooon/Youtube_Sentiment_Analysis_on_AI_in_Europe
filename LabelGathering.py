@@ -149,6 +149,8 @@ print("Out of ", len(positive_comments), " positive comments, we got ", positive
 
 
 # Check different confidence scores to see how the model performs
+best_acc_neg = 0
+best_acc_pos = 0
 conf_scores_test = [0.97,0.98,0.985, 0.99, 0.991, 0.992, 0.993, 0.994, 0.995]
 for conf_score in conf_scores_test:
     high_confidence_predictions = []
@@ -203,17 +205,37 @@ for conf_score in conf_scores_test:
     print("Out of ", len(neutral_comments_high_confidence), conf_score, " confidence scored neutral comments, we got ", neutral_correct, " correct. Accuracy : ", neutral_correct/len(neutral_comments_high_confidence))
     print("Out of ", len(positive_comments_high_confidence), conf_score,  " confidence scored positive comments, we got ", positive_correct, " correct. Accuracy : ", positive_correct/len(positive_comments_high_confidence))
 
+    # Save the current best accuracy and compare to the one from the previous iteration
+    if negative_correct/len(negative_comments_high_confidence) > best_acc_neg:
+        best_acc_neg = negative_correct/len(negative_comments_high_confidence)
+        # Also store the comments (also the ones that were classified wrong, as they still have a high confidence score : we might relabel !)
+        negative_comments_high_confidence_best = negative_comments_high_confidence
+        best_neg_predictions = high_confidence_predictions
+        best_neg_labels = high_confidence_labels
+    if positive_correct/len(positive_comments_high_confidence) > best_acc_pos:
+        best_acc_pos = positive_correct/len(positive_comments_high_confidence)
+        positive_comments_high_confidence_best = positive_comments_high_confidence
+        best_pos_predictions = high_confidence_predictions
+        best_pos_labels = high_confidence_labels
 
 
 
 
+# Save the best comments with our labels (column named 'labels') and the predicted labels (column named 'predictions')
+negative_comments_high_confidence_best = pd.DataFrame(negative_comments_high_confidence_best, columns=['comments'])
+negative_comments_high_confidence_best['labels'] = 'negative'
+predictions_on_negative = [best_neg_predictions[i] for i in range(len(best_neg_labels)) if best_neg_labels[i] == 'negative']
 
-"""
-# Turn list into a pandas series
-predictions = pd.Series(predictions)
-comments = pd.Series(comments)
-labels = pd.Series(labels)
-comments.to_csv("/Users/marlon/VS-Code-Projects/Youtube/comments_test.csv")
-predictions.to_csv("/Users/marlon/VS-Code-Projects/Youtube/predictions_test.csv")
-labels.to_csv("/Users/marlon/VS-Code-Projects/Youtube/labels_test.csv")
-"""
+negative_comments_high_confidence_best['predictions'] = predictions_on_negative
+
+positive_comments_high_confidence_best = pd.DataFrame(positive_comments_high_confidence_best, columns=['comments'])
+positive_comments_high_confidence_best['labels'] = 'positive'
+predictions_on_positive = [best_pos_predictions[i] for i in range(len(best_pos_labels)) if best_pos_labels[i] == 'positive']
+
+positive_comments_high_confidence_best['predictions'] = predictions_on_positive
+
+negative_comments_high_confidence_best.to_csv("/Users/marlon/VS-Code-Projects/Youtube/negative_comments_high_confidence_best.csv")
+positive_comments_high_confidence_best.to_csv("/Users/marlon/VS-Code-Projects/Youtube/positive_comments_high_confidence_best.csv")
+
+
+
