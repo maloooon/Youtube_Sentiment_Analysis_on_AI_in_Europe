@@ -1,15 +1,107 @@
-"""This file tests how good the distilbert-base-multilingual-cased-sentiment model is at predicting the sentiment of some of our data.
-   To this effect. We have labelled around 6000 comments ourselves in order to check the accuracy of the model."""
-
-
 import pandas as pd 
 from sklearn.model_selection import train_test_split
 from HelperFunctions import *
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, pipeline
+import glob
 
 
 
 # Load the datasets
+
+path_negative = '/Users/marlon/VS-Code-Projects/Youtube/Comments DB/English/Negative_for_loading'  
+all_english_negative = glob.glob(path_negative + "/*.csv")
+
+path_neural = '/Users/marlon/VS-Code-Projects/Youtube/Comments DB/English/Neutral_for_loading'
+all_english_neutral = glob.glob(path_neural + "/*.csv")
+
+path_positive = '/Users/marlon/VS-Code-Projects/Youtube/Comments DB/English/Positive_for_loading'
+all_english_positive = glob.glob(path_positive + "/*.csv")
+
+
+negative_list = [pd.read_csv(file) for file in all_english_negative]
+neutral_list = [pd.read_csv(file) for file in all_english_neutral]
+positive_list = [pd.read_csv(file) for file in all_english_positive]
+
+
+
+# Concatenate all DataFrames in the list into a single DataFrame
+combined_negative = pd.concat(negative_list, ignore_index=True)
+combined_neutral = pd.concat(neutral_list, ignore_index=True)
+combined_positive = pd.concat(positive_list, ignore_index=True)
+
+print("After the filtering by buzz words, we have ", len(combined_negative), "comments of the negative videos we scraped.")
+print("After the filtering by buzz words, we have ", len(combined_neutral), " comments of the neutral videos we scraped.")
+print("After the filtering by buzz words, we have ", len(combined_positive), " comments of the positive videos we scraped.")
+
+# Combine negative, neutral and positive
+combined_comments = pd.concat([combined_negative, combined_neutral, combined_positive], ignore_index=True)
+
+print("In total we have ", len(combined_comments), " comments.")
+# TODO : do this filtering step earlier
+# Remove comments with words like "video" ,"channel"
+combined_comments = combined_comments[~combined_comments['Comment'].str.contains('video|channel', case=False)]
+
+print("After the second word filter, we have ", len(combined_comments), " comments left.")
+# Extract the comments as a list
+comments = combined_comments['Comment'].tolist()
+
+# Remove comments that are less than 3 words long
+comments = [comment for comment in comments if len(comment.split()) > 3]
+print("Removing also the comments that are less than 3 words long, we have ", len(comments), " comments left.")
+
+# Turn all elements in comments into strings
+comments = [str(comment) for comment in comments]
+
+# Note that this is all already preprocessed. Now we label the data using a pretrained model
+
+# Load the tokenizer and model
+tokenizer = AutoTokenizer.from_pretrained("philschmid/distilbert-base-multilingual-cased-sentiment")
+model = AutoModelForSequenceClassification.from_pretrained("philschmid/distilbert-base-multilingual-cased-sentiment")
+
+# Initialize the sentiment analysis pipeline
+sentiment_analysis = pipeline("sentiment-analysis", model=model, tokenizer=tokenizer)
+
+# Predict sentiment labels
+predictions = sentiment_analysis(comments)
+
+# Extract the scores from the predictions
+scores = [prediction['score'] for prediction in predictions]
+
+# Extract the labels from the predictions
+predictions = [prediction['label'] for prediction in predictions]
+
+
+
+
+
+conf_scores_test = [0, 0.2, 0.4, 0.6, 0.8, 0.90, 0.95, 0.97,0.98,0.99]
+for conf_score in conf_scores_test:
+    high_confidence_predictions = []
+    high_confidence_comments = []
+    for i in range(len(scores)):
+        if scores[i] >= conf_score:
+            high_confidence_predictions.append(predictions[i])
+            high_confidence_comments.append(comments[i])
+
+    # Check how many comments are left after filtering by confidence score
+    print("We have ", len(high_confidence_predictions), " comments left after filtering by confidence score " , conf_score , " .")
+
+    # Check how many predictions we have in the respective classes
+    print("We have ", high_confidence_predictions.count('negative'), " negative predictions.")
+    print("We have ", high_confidence_predictions.count('neutral'), " neutral predictions.")
+    print("We have ", high_confidence_predictions.count('positive'), " positive predictions.")
+
+    # Save to csv the comments and their label
+    high_confidence_comments_df = pd.DataFrame(high_confidence_comments, columns=['comments'])
+    high_confidence_comments_df['predictions'] = high_confidence_predictions
+    high_confidence_comments_df.to_csv(f"/Users/marlon/VS-Code-Projects/Youtube/Comments DB/English/High_Confidence_Comments_{conf_score}.csv")
+
+
+
+
+
+
+"""
 # Note that mac users seperated with , automatically, for windows users we have to specify ; as the seperator
 english_test_dataset_labelled = pd.read_csv('/Users/marlon/VS-Code-Projects/Youtube/NLP labelled data preview/english set/Giuseppe.csv')
 english_test_dataset_labelled_2 = pd.read_csv('/Users/marlon/VS-Code-Projects/Youtube/NLP labelled data preview/english set/andrea.csv', sep= ';')
@@ -260,6 +352,6 @@ positive_comments_high_confidence_best['predictions'] = predictions_on_positive
 
 negative_comments_high_confidence_best.to_csv("/Users/marlon/VS-Code-Projects/Youtube/negative_comments_high_confidence_best.csv")
 positive_comments_high_confidence_best.to_csv("/Users/marlon/VS-Code-Projects/Youtube/positive_comments_high_confidence_best.csv")
-
+"""
 
 
