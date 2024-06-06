@@ -105,3 +105,90 @@ def save_model(model, tokenizer, path):
     model.save_pretrained(model_save_path)
     tokenizer.save_pretrained(model_save_path)
 
+
+
+
+"""
+def DistilBertModel(train_comments, train_labels, 
+                    val_comments, val_labels,
+                    test_comments, test_labels,  # Added test comments and labels
+                    batch_size_train, batch_size_val,
+                    batch_size_test,  # Added batch size for test set
+                    epochs, num_labels, tokenizer=tokenizer):
+
+
+    
+
+    # Instantiate multilingual model
+    model = DistilBertForSequenceClassification.from_pretrained('distilbert-base-multilingual-cased-sentiment', num_labels=num_labels)
+    
+
+    # Setup the Hugging Face Dataset Class
+    train_dataset_dict = {"text": train_comments, "label": train_labels}
+    val_dataset_dict = {"text": val_comments, "label": val_labels}
+    test_dataset_dict = {"text": test_comments, "label": test_labels}  # Added
+
+    train_dataset = Dataset.from_dict(train_dataset_dict)
+    val_dataset = Dataset.from_dict(val_dataset_dict)
+    test_dataset = Dataset.from_dict(test_dataset_dict)  # Added
+
+    # Apply the tokenizer to the datasets
+    def tokenize_function(examples):
+        return tokenizer(examples['text'], padding='max_length', truncation=True)
+
+    train_dataset = train_dataset.map(tokenize_function, batched=True)
+    val_dataset = val_dataset.map(tokenize_function, batched=True)
+    test_dataset = test_dataset.map(tokenize_function, batched=True)  # Added
+
+    # Remove columns we do not need for training
+    train_dataset = train_dataset.remove_columns(["text"])
+    val_dataset = val_dataset.remove_columns(["text"])
+    test_dataset = test_dataset.remove_columns(["text"])  # Added
+
+    # Set the format of the datasets to PyTorch tensors
+    train_dataset.set_format("torch")
+    val_dataset.set_format("torch")
+    test_dataset.set_format("torch")  # Added
+
+    # Training arguments
+    training_args = TrainingArguments(
+        output_dir='./results',          # output directory
+        num_train_epochs=epochs,              # total number of training epochs
+        per_device_train_batch_size=batch_size_train,  # batch size for training
+        per_device_eval_batch_size=batch_size_val,   # batch size for evaluation
+        per_device_test_batch_size=batch_size_test,  # Added batch size for testing
+        warmup_steps=500,                # number of warmup steps for learning rate scheduler
+        weight_decay=0.001,               # strength of weight decay
+        logging_dir='./logs',            # directory for storing logs
+        logging_steps=10,
+        evaluation_strategy="steps",     # Evaluate every `eval_steps`
+        eval_steps=10,                   # Number of steps between evaluations
+        save_steps=10,                   # Save the model every `save_steps`
+        load_best_model_at_end=True,     # Load the best model at the end of training
+        learning_rate= 1e-5,              # Set the learning rate
+        metric_for_best_model="eval_loss", # Use evaluation loss to check how good our model is performing
+        greater_is_better=False,
+    )
+
+    # Trainer
+    trainer = Trainer(
+        model=model,                         # model
+        args=training_args,                  # training arguments, defined above
+        train_dataset=train_dataset,         # training dataset
+        eval_dataset=val_dataset,            # evaluation dataset
+        tokenizer=tokenizer,
+    )
+
+    # Train the model
+    trainer.train()
+
+    # Evaluate the model on the test set
+    test_results = trainer.evaluate(eval_dataset=test_dataset)  # Added
+
+    # Print test accuracy
+    print("Test Accuracy:", test_results['eval_accuracy'])  # Assuming accuracy is calculated
+
+    return model, tokenizer, test_results  # Added test results to return
+"""
+
+
