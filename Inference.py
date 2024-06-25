@@ -13,7 +13,7 @@ if LANGUAGE == 'german':
     model = AutoModelForSequenceClassification.from_pretrained(model_path)
     tokenizer = AutoTokenizer.from_pretrained(model_path)
     texts = ["Erneuter Streik in der S-Bahn", "Ich liebe es, wenn die Sonne scheint", "Ich hasse es, wenn es regnet"]
-    inputs = tokenizer(texts, return_tensors="pt", padding='max_length', truncation=True, max_length=128)
+    inputs = tokenizer(texts, return_tensors="pt", padding='max_length', truncation=True, max_length=64)
 
     # Predict sentiment
     with torch.no_grad():
