@@ -1,1 +1,12 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Marlon Helbing"
+- family-names: "Daniele Virzì"
+- family-names: "Giuseppe Di Pasquale"
+- family-names: "Andrea Manocchio"
+- family-names: "Giovanni Passaro"
 
+title: "Youtube Sentiment Analysis"
+date-released: 2024-06-27
+url: "https://github.com/maloooon/Youtube"
